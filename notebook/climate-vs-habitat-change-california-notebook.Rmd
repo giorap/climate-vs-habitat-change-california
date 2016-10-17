@@ -1,0 +1,324 @@
+---
+title: "Relative importance of climate and habitat change in explaining species range shifts in California over a century"
+author: "Giovanni Rapacciuolo"
+date: "10/17/2016"
+output:
+  html_document:
+    theme: journal
+runtime: shiny
+---
+
+```{r, eval = TRUE, echo = FALSE, include = FALSE}
+##### -- Set things up -- #####
+### Load packages
+my_packages <- c("dplyr", "magrittr", "knitr", ### data-handling
+                 "ggplot2", "fields", "shiny", "grid" ### graphics
+)
+lapply(my_packages, require, character.only = TRUE)
+### Install and load library multispeciesPP
+# NOTE: RUN THE LINE BELOW ONLY THE FIRST TIME YOU RUN THIS SCRIPT
+# install.packages("multispeciesPP_1.0.tar.gz", repos = NULL, type="source")
+#library(multispeciesPP)
+### Load custom functions
+source("climate-vs-habitat-change-california-functions.R")
+```
+
+## Introduction
+Accelerated climate change and habitat degradation resulting from human activities are two of the main causes of ongoing changes in terrestrial biodiversity, having been linked to widespread changes in species’ distributions, phenology and physiology (Parmesan, 2006; Rosenzweig et al., 2008) and species’ recent declines and extinctions (Pimm & Raven, 2000; Millennium Ecosystem Assessment, 2005; Butchart et al., 2010; Leadley et al. 2014), respectively. However, habitat and climate change do not act in isolation. Climate changes are likely to exacerbate the effects of habitat degradation on species and communities (Jetz et al., 2007; Brook et al., 2008; Pereira et al., 2010; Mantyka-Pringle et al., 2012), while the loss of suitable habitat limits species’ ability to move in response to climate change. Given that more dramatic changes are projected over the course of this century for both drivers, understanding how they interact in the long term is key to improving our forecasts of biodiversity change. In this paper, we integrate survey and museum collection data for birds and mammals with unusually-detailed data on 20th century habitat and climate changes across much of California to examine the relative importance of these two drivers of distribution change.
+
+To date, progress on elucidating the biodiversity responses to the combined long-term effects of habitat and climate change has been hindered by the lack of spatially- and temporally-congruent data on changes in biodiversity, habitat and climate. Long-term biodiversity surveys that enable the reliable detection of biodiversity responses are hard to come by and often have extremely limited geographic and/or taxonomic coverage. Furthermore, available long-term biodiversity data can rarely be linked to site-level information on all relevant drivers of change. In particular, long-term datasets documenting regional changes in land-use are extremely rare, which may be why biodiversity responses to habitat change have received disproportionately little attention compared to climate change responses. 
+
+Here, we leverage significant advances in data assimilation and analytical methods to overcome these obstacles to temporal analyses. First, we use spatially-replicated biodiversity surveys and additional museum collection records to model distributions across the 20th century for two well-sampled animal groups in California – birds and mammals. Importantly, we take advantage of recent advances in species distribution modeling to extend the geographic and taxonomic coverage of our analyses. These novel methods focus on integrating spatially-comprehensive but biased presence-only distribution data with spatially-restricted but unbiased presence-absence data for a single species or even across multiple species. Second, we compare recently assembled and digitized historic vegetation maps, providing a snapshot of vegetation across California in the 1930s, with modern remote sensing products to estimate changes in habitat. By combining these habitat change data with temporal data from interpolated climate surfaces, we were able to obtain a rare picture of concurrent long-term changes in habitat and climate across a large region.
+
+In this study, we quantify species-environment associations for a subset of bird and mammal species across most of California in two time periods: historic (t1; ~1900–1939) and modern (t2; ~1970–2009). We transfer historical associations forward to the modern time period and modern associations backward to the historical time period. In both cases, we validate model projections against observed distribution data in the independent time period. Our assumption is that highly-transferable models have successfully captured fundamental drivers of distribution change. We include climate and habitat as environmental predictors in the models both separately and together to better understand their relative importance. Furthermore, we explore the impact of data integration (i.e. pooling presence-only and presence-absence data for a single species and/or across multiple species) on model transferability over time. Our primary questions are: i) what is the relative importance of climate and habitat predictors in explaining species’ distributions? ii) are models including either climate, habitat, or both better able to predict species’ distributions in an independent time period? iii) are models integrating presence-only with presence-absence data more transferable over time than models using only one of these data types? iv) are multi-species models more transferable over time than single-species models?
+
+## Methods and preliminary results
+NOTE: Results are very preliminary and based on as of yet incomplete distribution and habitat information. The results presented below are intended as a guideline of what this analysis aims to generate. 
+
+### Approach overview
+We ran analyses independently for birds and mammals. As a first step, we trained models using alternative combinations of four data types: historical or modern period; presence-absence and/or presence-only response; single- vs multi-species response; climate and/or habitat change predictors. As a second step, we validated models within the same time period on which they were trained (within-period validation) or transferred to them to the other time period (between-period validation). Estimates of predictive ability were calculated to infer relative performance of the various data combinations.
+
+### Species distribution data
+#### Presence-absence data from repeated surveys
+Bird and mammal data were collected as part of the Grinnell Resurvey Project (Moritz et al., 2008; Tingley et al., 2009), a multiyear effort to conduct extensive, community-scale resurveys of historical vertebrate sampling sites originally surveyed by Joseph Grinnell and colleagues in the early 20th century throughout the state California. For both birds and mammals, sites in both the historic and modern time period were distributed along elevation transects across three regions of montane California: a northern region, in the southern Cascade Range, around Lassen Volcanic National Park (‘Northern’), a central region, in the central Sierra Nevada, around Yosemite National Park (‘Central’) and a southern region, in the southern Sierra Nevada, around Kings Canyon and Sequoia National Parks (‘Southern’). For birds, a total of 77 sites were surveyed in both historical and modern periods. For mammals, a total of 85 sites were surveyed in both historical and modern periods. For more information about how these data were collected see Tingley et al. (2012) for birds and Rowe et al. (2014) for mammals. We limited our analyses to the species sets previously analyzed by Tingley et al. (2012) for birds (n = 99) and Rowe et al. (2014) for mammals (n = 34). 
+
+We used these detection–nondetection data to infer species absences. For birds and mammals, we inferred absences using a single-season occupancy framework (MacKenzie et al. 2006), which uses the pattern of detections (detection–nondetection) at each site across different days within a time period to estimate the probability that a species was present but not detected. We used a linear and squared effect of Julian day (jday) to model probability of detection (following Tingley et al. 2012). We used this model to estimate the probability of a false absence at each site in each time period for each species. Sites where the target species was not detected were assumed to be true absences if the probability of false absence was ≤ 0.10 (Rubidge et al. 2011). Sites where a species was not detected and with a probability of false absence > 0.10 were excluded from the presence-absence set. 
+
+```{r, eval = FALSE, echo = FALSE, include = FALSE}
+#### -- Load presence-absence data -- ####
+### NOTE: Number of sites is less than total number available because all sites not overlapping with historical vegetation survey coverage have been excluded
+### Birds
+t1_pa_bird <- readRDS("data/t1_pa_bird.rds")
+t2_pa_bird <- readRDS("data/t2_pa_bird.rds")
+### Mammals
+t1_pa_mamm <- readRDS("data/t1_pa_mamm.rds")
+t2_pa_mamm <- readRDS("data/t2_pa_mamm.rds")
+```
+
+#### Presence-only data from biocollections
+For all species in the final set, we complemented presence-absence data with presence-only data collected within the historic and modern periods from a variety of sources. For birds and mammals, specimen and observational records were assembled from museum collections accessed through Holos ([http://holos.berkeley.edu][1]).
+
+```{r, eval = FALSE, echo = FALSE, include = FALSE}
+#### -- Load presence-only data -- ####
+### Birds
+t1_po_bird <- readRDS("data/t1_po_bird.rds")
+t2_po_bird <- readRDS("data/t2_po_bird.rds")
+### Mammals
+t1_po_mamm <- readRDS("data/t1_po_mamm.rds")
+t2_po_mamm <- readRDS("data/t2_po_mamm.rds")
+```
+
+### Environmental data
+#### Climate
+We used 30-arcsec (~ 800-m) resolution climate layers of monthly minimum, maximum and mean temperature and precipitation derived from the parameter-elevation regression on independent slopes model (PRISM), averaged across 1900–1939 and across 1970–2009 (Daly et al. 2000). From these climate layers, we calculated four predictor variables: annual mean temperature (bio1; degrees C), maximum temperature of the warmest month (bio5; degrees C), minimum temperature of the coldest month (bio6; degrees C), and annual precipitation (bio12; mm). 
+
+#### Habitat
+We compared digital historic (1934) and contemporary (2000) vegetation maps. The historic Wieslander maps ([http://vtm.berkeley.edu/][3]) come from a 1930s survey conducted throughout California to define vegetation types and their distribution ranges. The contemporary map is a combination of the best available current vegetation maps for our study area: a United States National Park Service (NPS) vegetation map, and a United States Forest Service (USFS) vegetation map for the surrounding areas ([CalVeg 2000][4]). We rescaled the contemporary map to the same 150m grain as the historic map. We cross-referenced vegetation types from both maps using the California Wildlife Habitat Relationships (hereafter WHR) types (Mayer and Laudenslayer 1988). Each 150m grid cell in each time period was assigned to 1 of 59 habitat types. 150m grid cells were then aggregated to a 800-m resolution to match that of climate layers and the percentage cover of each habitat type in each 800m grid cell was calculated. To enable convergence of single and multispecies distribution models, we narrowed down the set of habitat types used based on the 6-8 habitat types with which birds or mammals were most associated.
+
+```{r, eval = FALSE, echo = FALSE, include = FALSE}
+#### -- Load background data -- ####
+### NOTE: The spatial grain of the environmental datasets is 30-arcsec (~ 800-m) and the spatial extent is limited by the extent of the historic vegetatation survey (~ 2/3 of California)
+### Historic (T1)
+t1_bg <- readRDS("data/t1_bg.rds")
+### Modern (T2)
+t2_bg <- readRDS("data/t2_bg.rds")
+
+#### -- Load habitat associations -- ####
+habitat_associations_bird <- readRDS("data/habitat_associations_bird.rds")
+habitat_associations_mamm <- readRDS("data/habitat_associations_mamm.rds")
+```
+
+### Final species sets
+Of all species considered, we only kept species with at least 10 detections at presence-absence survey sites and at least 10 additional presence-only records in both historic and modern time periods. Our final species sets therefore included 9 birds and 10 mammal species. 
+```{r, eval = FALSE, echo = FALSE, include = FALSE}
+#### -- Load final species sets -- ####
+final_species_set_bird <- readRDS("data/final_species_set_bird.rds")
+final_species_set_mamm <- readRDS("data/final_species_set_mamm.rds")
+```
+
+### Model training
+#### Multi-species poisson process model
+Presence-absence data typically have minimal sample selection bias regarding occurrence because, at any site, presence or absence can be determined (Dorazio 2014). As a result, they contain more reliable information regarding the prevalence of species and are likely to enable less biased quantification of environmental relationships (Fithian et al. 2015). However, presence-absence data are often limited with respect to data quantity and geographic extent. In contrast, presence-only data are often available at large geographic extents but they often suffer from sample selection bias (e.g. presence records are more likely in easily-accessible areas). This bias limits the use of such data for reliably identifying environmental relationships and accurately transferring models to new areas or time periods (Fletcher et al. 2015). Given the strengths and limitations of both presence-only and presence–absence data, models that leverage both types of information may be valuable for more reliably quantifying environmental relationships across large geographic extents and transferring those in time. Recent advances in species distribution modeling have focused on how to integrate these different sources of data (Dorazio 2014; Keil et al. 2014; Fithian et al. 2014). Here, we use a recently-developed model (Fithian et al. 2014), which pools presence-only and presence–absence data for many species and maximizes a joint likelihood, simultaneously estimating and adjusting for the sampling bias affecting the presence-only data. By assuming that the sampling bias is the same for all species, we can borrow strength across species to efficiently estimate the bias and improve our inference from presence-only data (for more information, see Fithian et al. 2014).
+
+#### Bias predictors
+The multi-species poisson process model estimates bias in the presence-only data using additional covariates that are hypothesized predictors of bias. Given their likely correlation with sampling effort, we included ruggedness (i.e. topographic heterogeneity; standard deviation of elevation), distance from urban areas (in km), distance from streams (in km), and distance from nearest presence-absence survey site (in km) as predictors of bias.
+
+#### Model comparison
+To test whether different degrees of data pooling actually improve predictive performance, we quantified species-environment associations using various degrees of data pooling. Specifically, for each birds and mammals in each time period (historic or modern), we generated the following models (following Fithian et al. 2014):
+- Presence-only data alone for the focal species (NOTE: not yet included)
+- Presence-absence data alone for the focal species (NOTE: not yet included)
+- Presence-absence and presence-only data combined for the focal species
+- Presence-absence and presence-only data combined and pooled across all species (i.e. multi-species)
+
+In addition, to examine the relative importance of habitat and climate as predictors of species’ distributions, we built each model using different environmental predictor sets:
+- Climate data alone
+- Habitat data alone
+- Climate and habitat data combined 
+
+Based on the above combinations, we therefore so far built 6 single-species models for each species (3 in each time period), as well as 12 multi-species models (3 each for birds and mammals in each time period).
+
+```{r, eval = FALSE, echo = FALSE, include = FALSE}
+#### -- Build models -- ####
+source("src/climate-vs-habitat-change-california-models.R")
+#### -- Extract model output -- ####
+mPP_out <- multispeciesPP_output()
+
+```
+
+The shiny app below displays, for each species, the 8 different model coefficients estimated for each variable from the different model combinations. Abbreviations are as follows: *Climate predictors* : **bio1** = Mean Annual Temperature; **bio6** = Minimum Temperature of the Coldest Month; **bio12** = Mean Annual Precipitation; *Habitat predictors* : **AGS** = Annual Grassland; **BOW** = Blue Oak Woodland; **LPN** = Lodgepole Pine; **MCH** = Mixed Chaparral; **MHW** = Montane Hardwood; **MRI** = Montane Riparian; **PPN** = Ponderosa Pine; **SCN** = Subalpine Conifer; **SMC** = Sierran Mixed Conifer
+
+```{r, eval = TRUE, echo = FALSE, message = FALSE}
+### Load packages
+library(shiny)
+library(ggplot2)
+
+### Load data
+mPP_out <- readRDS("mPP_out.rds")
+
+### Shiny app code
+shinyApp(
+        
+  ui = # Use a fluid Bootstrap layout
+          bootstrapPage(
+                  fluidRow(column(width = 4, uiOutput("choose_species"))),
+                  fluidRow(column(width = 10, plotOutput("coef_plot")))
+                  ),
+  
+  server = function(input, output) {  
+
+    # Drop-down selection box for which variable
+    output$choose_species <- renderUI({
+    selectInput("species", "Species: ", 
+                choices = c('Aphelocoma_californica' = "Aphelocoma_californica", 
+                            'Baeolophus_inornatus' = "Baeolophus_inornatus",
+                            'Catharus_guttatus' = "Catharus_guttatus",
+                            'Cyanocitta_stelleri' = "Cyanocitta_stelleri",
+                            'Melospiza_melodia' = "Melospiza_melodia",
+                            'Passerella_iliaca' = "Passerella_iliaca", 
+                            'Pipilo_maculatus' = "Pipilo_maculatus",
+                            'Psaltriparus_minimus' = "Psaltriparus_minimus",
+                            'Zonotrichia_leucophrys' = "Zonotrichia_leucophrys",
+                            'Melospiza_melodia' = "Callospermophilus_lateralis",
+                            'Microtus_californicus' = "Microtus_californicus", 
+                            'Microtus_longicaudus' = "Microtus_longicaudus",
+                            'Neotoma_macrotis' = "Neotoma_macrotis",
+                            'Otospermophilus_beecheyi' = "Otospermophilus_beecheyi",
+                            'Peromyscus_boylii' = "Peromyscus_boylii",
+                            'Peromyscus_maniculatus' = "Peromyscus_maniculatus",
+                            'Peromyscus_truei' = "Peromyscus_truei",
+                            'Reithrodontomys_megalotis' = "Reithrodontomys_megalotis",
+                            'Tamias_speciosus' = "Tamias_speciosus"
+                            )
+    )
+  })
+ 
+  # Output the data
+  output$coef_plot <- renderPlot({
+          group <- ifelse(input$species %in% mPP_out$mPP_bird_multispecies_t1_full[[1]]$species, "bird", "mamm")
+          multispeciesPP_coef_plot(species_name = input$species, group = group, mPP_out)
+  })
+},
+
+  options = list(height = 500)
+)
+```
+
+In addition, we can also get a first approximation of the relative explanatory power of climate vs habitat, as well as their combined explanatory power by looking at the unexplained deviance of each model. The shiny app below displays the amount of unexplained deviance in all multi- and single-species models.
+
+```{r, eval = TRUE, echo = FALSE, message = FALSE}
+### Load packages
+library(shiny)
+library(ggplot2)
+
+### Load data
+mPP_out <- readRDS("mPP_out.rds")
+
+### Shiny app code
+shinyApp(
+        
+  ui = # Use a fluid Bootstrap layout
+          bootstrapPage(
+                  fluidRow(column(width = 4, uiOutput("choose_taxon"))),
+                  fluidRow(column(width = 10, plotOutput("dev_plot")))
+                  ),
+  
+  server = function(input, output) {  
+
+    # Drop-down selection box for which variable
+    output$choose_taxon <- renderUI({
+    selectInput("taxon", "Taxon: ", 
+                choices = c('Birds - multispecies model' = "bird_multispecies",
+                            'Mammals - multispecies model' = "mamm_multispecies",
+                            'Aphelocoma_californica' = "Aphelocoma_californica", 
+                            'Baeolophus_inornatus' = "Baeolophus_inornatus",
+                            'Catharus_guttatus' = "Catharus_guttatus",
+                            'Cyanocitta_stelleri' = "Cyanocitta_stelleri",
+                            'Melospiza_melodia' = "Melospiza_melodia",
+                            'Passerella_iliaca' = "Passerella_iliaca", 
+                            'Pipilo_maculatus' = "Pipilo_maculatus",
+                            'Psaltriparus_minimus' = "Psaltriparus_minimus",
+                            'Zonotrichia_leucophrys' = "Zonotrichia_leucophrys",
+                            'Melospiza_melodia' = "Callospermophilus_lateralis",
+                            'Microtus_californicus' = "Microtus_californicus", 
+                            'Microtus_longicaudus' = "Microtus_longicaudus",
+                            'Neotoma_macrotis' = "Neotoma_macrotis",
+                            'Otospermophilus_beecheyi' = "Otospermophilus_beecheyi",
+                            'Peromyscus_boylii' = "Peromyscus_boylii",
+                            'Peromyscus_maniculatus' = "Peromyscus_maniculatus",
+                            'Peromyscus_truei' = "Peromyscus_truei",
+                            'Reithrodontomys_megalotis' = "Reithrodontomys_megalotis",
+                            'Tamias_speciosus' = "Tamias_speciosus"
+                            )
+    )
+  })
+ 
+  # Output the data
+  output$dev_plot <- renderPlot({
+          multispeciesPP_dev_plot(mPP_out, taxon_name = input$taxon)
+  })
+},
+
+  options = list(height = 500)
+)
+```
+
+### Model validation
+#### Within-period and between-period model projection
+We used each model to project probability of occurrence across (1) background sites in the historic (t1) time period, (2) background sites in the modern (t2) time period, (3) presence-absence sites in the historic (t1) time period, and (4) presence-absence sites in the modern (t2) time period. Based on whether models were initially trained on t1 or t2 data, such predictions represented either within-period predictions or between-period predictions (i.e. independent temporal validation). We are mainly interested in between-period predictions because they reflect how well models are able to estimate changes in distributions over time based on changes in climate, habitat, or both.
+
+#### Performance measures
+We estimated the agreement between independent validation predictions and presence-absence observations for the using the area under the receiver-operator curve (AUC) and the Pearson correlation coefficient between predicted values and observed binary presence-absence (point-biserial correlation, COR; Elith et al. 2006). 
+
+The shiny app below displays the independent between-period measures of performance for each model. Both AUC and COR have a maximum of 1, indicating perfect agreement between predictions and observations, and for both the higher the value the better. COR values could not be calculated for all species given the scarcity of reliable absence data for some species.
+
+```{r, eval = TRUE, echo = FALSE, message = FALSE}
+### Load packages
+library(shiny)
+library(ggplot2)
+
+### Load data
+mPP_eval_output <- readRDS("mPP_eval_output.rds")
+
+### Shiny app code
+shinyApp(
+        
+        ui = # Use a fluid Bootstrap layout
+                bootstrapPage(
+                        fluidRow(column(width = 4, uiOutput("choose_taxon")),
+                                 column(width = 4, uiOutput("choose_measure"))),
+                        fluidRow(column(width = 10, plotOutput("eval_plot")))
+                ),
+        
+        server = function(input, output) {  
+                
+                # Drop-down selection box for which variable
+                output$choose_taxon <- renderUI({
+                        selectInput("taxon", "Taxon: ", 
+                                    choices = c('Aphelocoma_californica' = "Aphelocoma_californica", 
+                                                'Baeolophus_inornatus' = "Baeolophus_inornatus",
+                                                'Catharus_guttatus' = "Catharus_guttatus",
+                                                'Cyanocitta_stelleri' = "Cyanocitta_stelleri",
+                                                'Melospiza_melodia' = "Melospiza_melodia",
+                                                'Passerella_iliaca' = "Passerella_iliaca", 
+                                                'Pipilo_maculatus' = "Pipilo_maculatus",
+                                                'Psaltriparus_minimus' = "Psaltriparus_minimus",
+                                                'Zonotrichia_leucophrys' = "Zonotrichia_leucophrys",
+                                                'Melospiza_melodia' = "Callospermophilus_lateralis",
+                                                'Microtus_californicus' = "Microtus_californicus", 
+                                                'Microtus_longicaudus' = "Microtus_longicaudus",
+                                                'Neotoma_macrotis' = "Neotoma_macrotis",
+                                                'Otospermophilus_beecheyi' = "Otospermophilus_beecheyi",
+                                                'Peromyscus_boylii' = "Peromyscus_boylii",
+                                                'Peromyscus_maniculatus' = "Peromyscus_maniculatus",
+                                                'Peromyscus_truei' = "Peromyscus_truei",
+                                                'Reithrodontomys_megalotis' = "Reithrodontomys_megalotis",
+                                                'Tamias_speciosus' = "Tamias_speciosus"
+                                    )
+                        )
+                })
+                
+                # Drop-down selection box for which variable
+                output$choose_measure <- renderUI({
+                        selectInput("measure", "Measure: ", 
+                                    choices = c('AUC' = "auc",
+                                                'COR' = "cor"
+                                    )
+                        )
+                })     
+                # Output the data
+                output$eval_plot <- renderPlot({
+                        multispeciesPP_eval_plot(mPP_eval_output, taxon_name = input$taxon, measure = input$measure)
+                })
+        },
+        
+        options = list(height = 500)
+)
+```
+
+[1]:http://holos.berkeley.edu
+[2]:http://zookeys.pensoft.net/articles.php?id=4720
+[3]:http://vtm.berkeley.edu/
+[4]:http://www.fs.fed.us/r5/rsl/projects/mapping/accuracy.shtml
+
+
+
